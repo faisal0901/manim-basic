@@ -49,6 +49,14 @@ Status: **Final** = sudah kamu setujui atau sudah jelas dari percakapan. **Tebak
 | Belum ada logo/nama channel di layar | | **Tebakan** |
 | Layout 16:9 dua kolom (sudah ada di rag_kapur.py) | | **Tebakan**, untuk v2 belum dicek |
 
+## Video auto compact (27 Nov 2026)
+| Keputusan | Alasan | Status |
+|---|---|---|
+| Video gaya A tentang auto compact, dibangun di atas kerangka system prompt peringkas (PERAN, INPUT, TRUST, KEEP, DROP, NEVER STORE, MERGE, FORMAT) | Permintaanmu: tunjukkan struktur system prompt ringkasan, konsep saja, tanpa salin teks atau sebut produk/kantor | Final (naskah v2 disetujui) |
+| Semua angka auto compact diberi label "sesuaikan dengan kebutuhan" | Permintaanmu: angka bukan mutlak | Final |
+| Label bagian bahasa Inggris + terjemahan kecil; 3 aturan tak dibacakan jadi teks kecil di kartu | Default dari Claude, kamu belum jawab | **Tebakan** |
+| "Klaim" = aturan TRUST (hanya ucapan user jadi fakta; saran AI yang disetujui = keputusan) | Tafsiran Claude | **Tebakan** |
+
 ## Masih terbuka
 - Gaya mana yang menang (tunggu hasil uji A/B).
 - Nama seri dan penomoran: "Kalau kamu yang bikin... #1" vs format seragam seperti "AI 60 Detik #1" (saran riset).
