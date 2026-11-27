@@ -24,6 +24,7 @@ videos/
 ├── 02-tokenizer/          token_hook.py: TokenHook
 ├── 03-embedding/          embedding_kalau_kamu_bikin.py: EmbeddingKalauKamuBikin
 ├── caveman-hemat-token/   caveman_hook.py: CavemanHook
+├── 06-temperature/        temperature_kalau_kamu_bikin.py: TemperatureKalauKamuBikin
 └── makasih-ke-chatgpt/    sopan_hook.py: SopanHook
 arsip/           rag-v1, rag-v2, rag-v3: jangan dikembangkan
 logo/            logo_kapur.py, logo_a_poles.py (Pillow, bukan Manim)
