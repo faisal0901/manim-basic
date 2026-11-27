@@ -1,0 +1,21 @@
+# Output render Manim
+media/
+preview/
+*.mp4
+*.mov
+*.gif
+*.png
+*.jpg
+*.zip
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
