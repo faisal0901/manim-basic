@@ -9,5 +9,5 @@ if [ -n "$RENDER" ]; then
 fi
 : > daftar.txt
 for k in $KELAS; do echo "file 'media/videos/$F/1920p60/$k.mp4'" >> daftar.txt; done
-ffmpeg -y -f concat -safe 0 -i daftar.txt -c copy PROMPT_CACHING_A_kalau_kamu_bikin_vertical.mp4
+ffmpeg -y -f concat -safe 0 -i daftar.txt -c copy PROMPT_CACHING_A_kalau_kamu_bikin_v2_vertical.mp4
 rm daftar.txt

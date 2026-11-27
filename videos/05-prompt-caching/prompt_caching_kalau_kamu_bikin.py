@@ -269,62 +269,14 @@ class Zoom3D(Kapur3D):
         self.remove(world)
 
 
-class S04Zoom(Zoom3D):
-    def construct(self):
-        # 1. data center
-        self.set_camera_orientation(phi=70 * DEGREES, theta=-75 * DEGREES, zoom=0.62, frame_center=[0, 0, 3.2])
-        rak_, fokus = dunia_rak()
-        self.add(rak_)
-        self.judul3d("Kita intip servernya")
-        l1 = self.lab("server AI di data center", (0, 4.6), color=ABU)
-        self.play(FadeIn(l1), run_time=CEPAT)
-        self.move_camera(theta=-60 * DEGREES, zoom=0.74, run_time=1.0)
-        self.mark("A_05_rak")
-        self.masuk(rak_, fokus, extra=[FadeOut(l1)])
-        # 2. server
-        self.set_camera_orientation(phi=55 * DEGREES, theta=-70 * DEGREES, zoom=0.45, frame_center=[0, 0, 0])
-        srv, cpu, gpus, fg = dunia_server()
-        self.play(FadeIn(srv), run_time=CEPAT)
-        self.move_camera(zoom=0.75, run_time=0.9)
-        a = self.lab("GPU · tukang hitung", (0.6, 3.9), color=TOSKA, size="body")
-        b = self.lab("CPU · manajer", (-2.0, -3.15), color=TINTA, size="body")
-        b2 = self.lab("terima pesan, atur antrean", (-1.1, -3.7), color=ABU)
-        self.play(FadeIn(a), FadeIn(b), FadeIn(b2), fg.animate.set_stroke(KUNYIT, width=4), run_time=CEPAT)
-        self.mark("A_06_server")
-        self.wait(0.5)
-        self.masuk(srv, fg, extra=[FadeOut(a), FadeOut(b), FadeOut(b2)])
-        # 3. GPU
-        self.set_camera_orientation(phi=58 * DEGREES, theta=-62 * DEGREES, zoom=0.5, frame_center=[0, 0, 0.4])
-        gp, inti, hbm, fh = dunia_gpu()
-        self.play(FadeIn(gp), run_time=CEPAT)
-        self.move_camera(zoom=0.9, run_time=0.9)
-        c = self.lab("memori GPU", (1.4, 3.55), color=KERTAS, size="body")
-        d = self.lab("inti hitung", (-0.2, -3.3), color=TOSKA, size="body")
-        self.play(FadeIn(c), FadeIn(d), fh.animate.set_stroke(KUNYIT, width=3), run_time=CEPAT)
-        self.mark("A_07_gpu")
-        self.wait(0.4)
-        self.masuk(gp, fh, extra=[FadeOut(c), FadeOut(d)])
-        # 4. memori: blok 1-5 terisi
-        self.set_camera_orientation(phi=60 * DEGREES, theta=-70 * DEGREES, zoom=0.55, frame_center=[0, 0, 0.3])
-        mem, slots = dunia_memori(tampil_prefix=False)
-        self.play(FadeIn(mem), run_time=CEPAT)
-        self.move_camera(zoom=0.82, run_time=0.8)
-        isi = VGroup()
-        for p in PREFIX:
-            k = kubus(TOSKA, sisi=0.9 * 0.86, isi=0.5)
-            k.move_to(slots_center(p) + OUT * 0.39)
-            isi.add(k)
-        e = self.lab("hasil hitungan aturan toko", (0, 4.45), color=TOSKA, size="body")
-        self.play(FadeIn(e), LaggedStart(*[FadeIn(k, shift=IN * 0.8) for k in isi], lag_ratio=0.2), run_time=1.4)
-        kartu_ = kartu(VGroup(mono("isi 1 blok (ilustrasi)", color=ABU, size="mikro"),
-                              mono("0.12  -0.87  0.45  1.03  …", color=JINGGA, size="caption"))
-                       .arrange(DOWN, buff=0.15, aligned_edge=LEFT), aksen=JINGGA).move_to([0, -3.15, 0])
-        self.add_fixed_in_frame_mobjects(kartu_)
-        self.remove(kartu_)
-        f = self.lab("angka, bukan teks", (0, -4.25), color=KUNYIT)
-        self.play(FadeIn(kartu_), FadeIn(f), run_time=CEPAT)
-        self.mark("A_08_memori")
-        self.wait(1.0)
+# v2: kamera TETAP (sudut & zoom sama di semua level). "Masuk" = dunia lama membesar pelan di sekitar
+# objek sorotan sambil memudar, dunia baru muncul dari kecil di tengah, bersamaan (crossfade).
+# Tidak ada layar gelap, tidak ada putar kamera, warna sorotan sudah ada sejak awal.
+PHI, THETA, ZOOM = 62 * DEGREES, -66 * DEGREES, 0.78
+PUSAT3D = [0, 0, 0.3]
+T_GESER = 1.4   # geser pelan supaya sorotan ke tengah
+T_MASUK = 1.8   # crossfade level
+MEM_S = 1.35    # skala dunia memori di akhir zoom
 
 
 def slots_center(p, nx=5, ny=4, s=0.9, gap=0.14):
@@ -332,56 +284,167 @@ def slots_center(p, nx=5, ny=4, s=0.9, gap=0.14):
     return np.array([(i - (nx - 1) / 2) * (s + gap), (j - (ny - 1) / 2) * (s + gap), 0.0])
 
 
-class S05Cocok(Zoom3D):
+class Zoom3Dv2(Zoom3D):
+    def kamera(self):
+        self.set_camera_orientation(phi=PHI, theta=THETA, zoom=ZOOM, frame_center=PUSAT3D)
+
+    def lab(self, s, xy, color=TINTA, size="body", weight=MEDIUM, mono_=False):
+        return super().lab(s, xy, color=color, size=size, weight=weight, mono_=mono_)
+
+    def masuk(self, lama, sorot, baru, keluar=(), datang=()):
+        """Zoom penuh ke objek sorotan (kuning), baru pindah level.
+        1) dunia digeser + dibesarkan pelan sampai sorotan memenuhi layar, objek lain meredup;
+        2) level baru muncul di ukuran penuh sementara yang lama memudar (crossfade singkat)."""
+        p = np.array(PUSAT3D, dtype=float)
+        lebar_layar = config.frame_width / ZOOM
+        k = min(6.0, 0.75 * lebar_layar / max(sorot.width, sorot.depth, sorot.height * 1.6))
+        geser = p - np.array(sorot.get_center())
+        lama.generate_target()
+        lama.target.shift(geser).scale(k, about_point=p)
+        jaga = {id(m) for m in sorot.get_family()}
+        for m, tm in zip(lama.get_family(), lama.target.get_family()):
+            if id(m) in jaga or m.submobjects:
+                continue
+            tm.set_stroke(opacity=0.08)
+            tm.set_fill(opacity=0.03)
+        self.play(MoveToTarget(lama), *[FadeOut(m) for m in keluar], run_time=2.6, rate_func=smooth)
+        self.play(FadeOut(lama, scale=1.25), FadeIn(baru, scale=0.85), *[FadeIn(m) for m in datang],
+                  run_time=1.0, rate_func=smooth)
+        self.remove(lama)
+
+
+def dunia_rak_v2():
+    g, fokus = dunia_rak()
+    g.scale(0.92).shift(IN * 3.0)
+    return g, fokus
+
+
+def dunia_server_v2():
+    srv, cpu, gpus, fg = dunia_server()
+    fg.set_stroke(KUNYIT, width=4)
+    return srv, fg
+
+
+def dunia_gpu_v2():
+    gp, inti, hbm, fh = dunia_gpu()
+    fh.set_stroke(KUNYIT, width=3)
+    gp.scale(1.12)
+    return gp, fh
+
+
+def terang_memori(mem):
+    """Papan & slot memori sedikit lebih terang supaya transisi nggak terasa gelap."""
+    mem[0].set_stroke(ABU, width=2.5)
+    for m in mem[1]:
+        if isinstance(m, Square):
+            m.set_stroke(ABU_GELAP, width=2.5)
+        elif m.get_stroke_color() is not None and m.get_stroke_color().to_hex().upper() == ABU_GELAP.upper():
+            m.set_stroke(ABU, width=2)
+    return mem
+
+
+class S04Zoom(Zoom3Dv2):
     def construct(self):
-        self.set_camera_orientation(phi=60 * DEGREES, theta=-70 * DEGREES, zoom=0.78, frame_center=[0, 0, 0.3])
+        self.kamera()
+        rak_, fokus = dunia_rak_v2()
+        l1 = self.lab("server AI di data center", (0, 4.6), color=ABU)
+        self.add(rak_)
+        self.judul3d("Kita intip servernya")
+        self.play(FadeIn(l1), run_time=0.6)
+        self.wait(0.6)
+        self.mark("A_05_rak")
+        # rak -> server
+        srv, fg = dunia_server_v2()
+        a = self.lab("GPU · tukang hitung", (0.6, 4.0), color=TOSKA)
+        b = self.lab("CPU · manajer", (-1.9, -3.2), color=TINTA)
+        b2 = self.lab("terima pesan, atur antrean", (-0.9, -3.85), color=ABU, size="caption")
+        self.masuk(rak_, fokus, srv, keluar=[l1], datang=[a, b, b2])
+        self.wait(1.0)
+        self.mark("A_06_server")
+        # server -> GPU
+        gp, fh = dunia_gpu_v2()
+        c = self.lab("memori GPU", (1.4, 3.7), color=KERTAS)
+        d = self.lab("inti hitung", (-0.3, -3.4), color=TOSKA)
+        self.masuk(srv, fg, gp, keluar=[a, b, b2], datang=[c, d])
+        self.wait(0.9)
+        self.mark("A_07_gpu")
+        # GPU -> memori
+        mem, slots = dunia_memori(tampil_prefix=False)
+        mem.scale(MEM_S, about_point=ORIGIN)
+        terang_memori(mem)
+        self.masuk(gp, fh, mem, keluar=[c, d])
+        isi = VGroup()
+        for p in PREFIX:
+            k = kubus(TOSKA, sisi=0.9 * 0.86 * MEM_S, isi=0.5)
+            k.move_to(slots_center(p) * MEM_S + OUT * 0.39 * MEM_S)
+            isi.add(k)
+        e = self.lab("hasil hitungan aturan toko", (0, 4.45), color=TOSKA)
+        self.play(FadeIn(e), LaggedStart(*[FadeIn(k, shift=IN * 0.6) for k in isi], lag_ratio=0.2), run_time=1.0)
+        kartu_ = kartu(VGroup(mono("isi 1 blok (ilustrasi)", color=ABU, size="caption"),
+                              mono("0.12  -0.87  0.45  1.03  …", color=JINGGA, size="body"))
+                       .arrange(DOWN, buff=0.15, aligned_edge=LEFT), aksen=JINGGA).move_to([0, -3.1, 0])
+        self.add_fixed_in_frame_mobjects(kartu_)
+        self.remove(kartu_)
+        f = self.lab("angka, bukan teks", (0, -4.3), color=KUNYIT)
+        self.play(FadeIn(kartu_), FadeIn(f), run_time=0.8)
+        self.mark("A_08_memori")
+        self.wait(1.2)
+
+
+class S05Cocok(Zoom3Dv2):
+    def construct(self):
+        self.kamera()
         mem, slots = dunia_memori()
-        mem.shift(UP * 1.6)
+        mem.scale(MEM_S, about_point=ORIGIN)
+        terang_memori(mem)
         self.add(mem)
         self.judul3d("Pertanyaan berikutnya")
+        # dunia memori geser ke atas pelan, pesan baru masuk dari bawah
         s = 0.9
         req = VGroup()
         for n in range(7):
             k = kubus(LANGIT if n < 5 else KUNYIT, sisi=s * 0.86, isi=0.3 if n < 5 else 0.55)
-            k.move_to([(n - 3) * (s + 0.1) + 0.5, -4.4 + 1.6, s * 0.43])
+            k.move_to([(n - 3) * (s + 0.1) + 0.5, -2.9, s * 0.43])
             req.add(k)
-        l0 = self.lab("pesan baru masuk", (-2.0, -3.85), color=LANGIT)
-        self.play(LaggedStart(*[FadeIn(k, shift=UP * 1.0) for k in req], lag_ratio=0.08), FadeIn(l0), run_time=1.0)
-        l1 = self.lab("CPU cocokin sidik tiap blok, dari awal", (0, 4.5), color=TINTA)
-        self.play(FadeIn(l1), run_time=CEPAT)
+        l0 = self.lab("pesan baru masuk", (-1.9, -3.95), color=LANGIT)
+        self.play(mem.animate.scale(1.05 / MEM_S, about_point=ORIGIN).shift(UP * 1.5), run_time=1.2, rate_func=smooth)
+        self.play(LaggedStart(*[FadeIn(k, shift=UP * 0.5) for k in req], lag_ratio=0.1), FadeIn(l0), run_time=1.2)
+        l1 = self.lab("CPU cocokin sidik tiap blok, dari awal", (0, 4.5), color=TINTA, size="caption")
+        self.play(FadeIn(l1), run_time=0.6)
         tali = VGroup()
         for n, p in enumerate(PREFIX):
             t = garis_putus(req[n].get_center() + UP * 0.4, slots[p].get_center() + DOWN * 0.4, color=DAUN, w=2.5)
             tali.add(t)
-            self.play(Create(t), req[n].animate.set_stroke(DAUN).set_fill(redup(DAUN, 0.35), 0.35), run_time=0.32)
-        l2 = self.lab("sama → GPU loncatin hitungannya", (0, -2.85), color=DAUN)
-        l3 = self.lab("baru → dihitung", (2.15, -3.85), color=KUNYIT)
-        self.play(FadeIn(l2), FadeIn(l3), Indicate(req[5:], color=KUNYIT), run_time=0.8)
+            self.play(Create(t), req[n].animate.set_stroke(DAUN).set_fill(redup(DAUN, 0.35), 0.35), run_time=0.4)
+        l2 = self.lab("sama → GPU loncatin hitungannya", (0, -2.0), color=DAUN, size="caption")
+        l3 = self.lab("baru → dihitung", (2.2, -3.95), color=KUNYIT)
+        self.play(FadeIn(l2), FadeIn(l3), run_time=0.6)
         self.mark("A_09_cocok")
-        self.wait(JEDA)
-        # transisi ke aturan "dari awal"
-        self.play(FadeOut(VGroup(mem, req, tali)), FadeOut(l0), FadeOut(l1), FadeOut(l2), FadeOut(l3), run_time=CEPAT)
-        self.set_camera_orientation(phi=72 * DEGREES, theta=-78 * DEGREES, zoom=0.8, frame_center=[0, 0, 2.7])
-        self.judul3d("Dicocokin dari awal")
+        self.wait(1.4)
+        # crossfade ke aturan "dari awal": kamera tetap
         sisi, gap = 0.72, 0.07
         simpan = menara([TOSKA] * 5, x=-2.6, sisi=sisi, gap=gap)
         cocok = menara([DAUN] * 5 + [LANGIT, LANGIT], x=0.0, sisi=sisi, gap=gap)
         beda = menara([DAUN] * 7, x=2.6, sisi=sisi, gap=gap)
-        lt = lantai(10)
-        self.play(FadeIn(lt), FadeIn(simpan), FadeIn(cocok), FadeIn(beda), run_time=CEPAT)
-        m1 = self.lab("tersimpan", (-2.75, -3.0), color=TOSKA)
-        m2 = self.lab("sama persis", (0.0, -3.0), color=DAUN)
-        m3 = VGroup(self.lab("beda 1 kata", (2.65, -3.0), color=SAGA), self.lab("di depan", (2.65, -3.5), color=SAGA, size="mikro"))
-        self.play(FadeIn(m1), FadeIn(m2), run_time=CEPAT)
+        towers = VGroup(simpan, cocok, beda).shift(IN * 2.3)
+        lama = VGroup(mem, req, tali)
+        self.judul3d("Dicocokin dari awal")
+        m1 = self.lab("tersimpan", (-2.75, -3.2), color=TOSKA, size="caption")
+        m2 = self.lab("sama persis", (0.0, -3.2), color=DAUN, size="caption")
+        self.play(FadeOut(lama), FadeOut(VGroup(l0, l1, l2, l3)), FadeIn(towers), FadeIn(m1), FadeIn(m2),
+                  run_time=1.4, rate_func=smooth)
+        m3 = VGroup(self.lab("beda 1 kata", (2.65, -3.2), color=SAGA, size="caption"),
+                    self.lab("di depan", (2.65, -3.7), color=SAGA, size="caption"))
         self.play(beda[1].animate.set_stroke(KUNYIT, width=4).set_fill(redup(KUNYIT, 0.4), 0.6), FadeIn(m3),
-                  run_time=CEPAT)
+                  run_time=0.8)
         self.play(LaggedStart(*[k.animate.set_stroke(SAGA).set_fill(redup(SAGA, 0.4), 0.55) for k in beda[2:]],
-                              lag_ratio=0.15), run_time=1.0)
-        m4 = self.lab("semua setelahnya dihitung ulang", (2.0, 2.9), color=SAGA, size="mikro")
-        m5 = self.lab("yang tetap → depan · yang berubah → belakang", (0, -4.2), color=TINTA, size="mikro")
-        self.play(FadeIn(m4), FadeIn(m5), run_time=CEPAT)
+                              lag_ratio=0.2), run_time=1.4)
+        m4 = self.lab("semua setelahnya dihitung ulang", (1.4, 3.3), color=SAGA, size="caption")
+        m5 = self.lab("yang tetap → depan · berubah → belakang", (0, -4.5), color=TINTA, size="caption")
+        self.play(FadeIn(m4), FadeIn(m5), run_time=0.7)
         self.mark("A_10_dari_awal")
         self.wait(JEDA)
+
 
 
 # --------------------------------------------------------------------------
