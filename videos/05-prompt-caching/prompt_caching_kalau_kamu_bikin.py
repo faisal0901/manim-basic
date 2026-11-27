@@ -86,6 +86,45 @@ def ganti(scene, lama, baru, rt=CEPAT):
     return baru
 
 
+TAG = ["peran", "gaya", "garansi", "retur", "ongkir"]
+ATURAN_PANJANG = ATURAN + ["Sapa pembeli pakai \u201ckak\u201d.", "Jangan janji stok pasti.", "\u2026 (total 3.000 token)"]
+
+
+def balon(s, col=ABU, size="mikro", tcol=TINTA, font=None):
+    t = (mono(s, color=tcol, size=size) if font == "mono" else teks(s, color=tcol, size=size))
+    r = RoundedRectangle(width=t.width + 0.4 * S, height=t.height + 0.3 * S, corner_radius=0.14 * S,
+                         fill_color=redup(col, 0.22), fill_opacity=1, stroke_color=col, stroke_width=1.8 * S)
+    t.move_to(r)
+    return VGroup(r, t)
+
+
+def tumpuk_aturan(lines, col=ABU, size="mikro", buff=0.1):
+    g = VGroup(*[balon(x, col, size) for x in lines]).arrange(DOWN, buff=buff * S, aligned_edge=LEFT)
+    return g
+
+
+def chip_angka(tag, col=TOSKA, size="mikro", n=2, seed=0):
+    rng = np.random.default_rng(seed)
+    angka = "  ".join(f"{v:+.2f}" for v in rng.normal(0, 0.8, n))
+    t = VGroup(mono(tag, color=col, size=size, weight=BOLD), mono(angka, color=JINGGA, size=size))
+    t.arrange(RIGHT, buff=0.25 * S)
+    r = RoundedRectangle(width=t.width + 0.35 * S, height=t.height + 0.26 * S, corner_radius=0.1 * S,
+                         fill_color=redup(col, 0.18), fill_opacity=1, stroke_color=col, stroke_width=1.8 * S)
+    t.move_to(r)
+    return VGroup(r, t)
+
+
+def label3d(s, kub, color=TINTA, ukuran=20, maks=0.92):
+    """Teks di sisi depan kubus (menghadap -y, dekat arah kamera)."""
+    t = Text(s, font=FONT_MONO, weight=BOLD, color=color, font_size=ukuran)
+    if t.width > maks * kub.width:
+        t.scale_to_fit_width(maks * kub.width)
+    t.rotate(PI / 2, RIGHT)
+    c = kub.get_center()
+    t.move_to([c[0], kub.get_bottom()[1] - 0.02 if False else c[1] - kub.depth / 2 - 0.02, c[2]])
+    return t
+
+
 # --------------------------------------------------------------------------
 # 01 hook
 # --------------------------------------------------------------------------
@@ -96,16 +135,20 @@ class S01Hook(KapurScene):
         tanya.move_to(pos(0.9, 4.4))
         orang = ikon_orang(LANGIT, 1.3).next_to(tanya, RIGHT, buff=0.2 * S)
         self.play(FadeIn(tanya, shift=UP * GESER), FadeIn(orang), run_time=CEPAT)
-        tower = menara2d(9, ABU, s=0.55).move_to(pos(-1.2, -0.3))
-        lab = teks("+ aturan toko", color=TINTA, size="body", weight=MEDIUM).move_to(pos(1.6, 0.8))
+        head = mono("SYSTEM PROMPT", color=ABU, size="mikro", weight=BOLD)
+        tower = tumpuk_aturan(ATURAN_PANJANG)
+        blok = VGroup(head, tower).arrange(DOWN, buff=0.18 * S, aligned_edge=LEFT)
+        blok.move_to(pos(0, 0.4)).align_to([AMAN["kiri"], 0, 0], LEFT)
+        lab = teks("+ aturan toko", color=TINTA, size="body", weight=MEDIUM).move_to(pos(2.0, 1.6))
         tok = mono("3.000 token", color=JINGGA, size="h2", weight=BOLD).next_to(lab, DOWN, buff=0.2 * S)
         cth = caption("angka contoh").next_to(tok, DOWN, buff=0.12 * S)
-        self.play(LaggedStart(*[FadeIn(b, shift=DOWN * 0.6 * S) for b in tower], lag_ratio=0.12),
+        self.play(FadeIn(head), LaggedStart(*[FadeIn(b, shift=DOWN * 0.4 * S) for b in tower], lag_ratio=0.12),
                   FadeIn(lab), run_time=1.3)
         self.play(FadeIn(tok), FadeIn(cth), run_time=CEPAT)
-        nol = judul("dari nol.", color=SAGA, size="display").move_to(pos(1.6, -1.6))
-        self.play(LaggedStart(*[b.animate.set_stroke(SAGA).set_fill(redup(SAGA, 0.5), 0.5) for b in tower],
-                              lag_ratio=0.06), FadeIn(nol, scale=1.1), run_time=1.0)
+        nol = judul("dari nol.", color=SAGA, size="display").move_to(pos(2.0, -1.0))
+        self.play(LaggedStart(*[b[0].animate.set_stroke(SAGA) for b in tower], lag_ratio=0.06),
+                  FadeIn(nol, scale=1.1), run_time=1.0)
+        self.add(*[b[1] for b in tower])
         self.mark("A_01_hook")
         self.wait(JEDA)
 
@@ -116,24 +159,27 @@ class S01Hook(KapurScene):
 class S02Kalau(KapurScene):
     def construct(self):
         self.header("Kalau kamu yang bikin…", chapter=BAB)
-        tower = menara2d(7, ABU, s=0.5).move_to(pos(-2.7, 0.6))
-        q = blok2d(LANGIT, 0.5, 0.6).next_to(tower, UP, buff=0.07 * S)
-        lt = caption("aturan toko").next_to(tower, DOWN, buff=0.2 * S)
-        lq = caption("pertanyaan", color=LANGIT).next_to(q, RIGHT, buff=0.15 * S)
-        self.play(FadeIn(tower, shift=UP * GESER), FadeIn(q), FadeIn(lt), FadeIn(lq), run_time=CEPAT)
-        g = chip("GPU", TOSKA, 1.9).move_to(pos(-0.2, 0.9))
+        q = balon("masih ready kak?", LANGIT)
+        tower = tumpuk_aturan(ATURAN + ["…"])
+        kol = VGroup(tower, q).arrange(DOWN, buff=0.1 * S, aligned_edge=LEFT)
+        kol.move_to(pos(0, 1.4)).align_to([AMAN["kiri"], 0, 0], LEFT)
+        lt = caption("aturan toko + pertanyaan").next_to(kol, DOWN, buff=0.2 * S).align_to(kol, LEFT)
+        self.play(FadeIn(tower, shift=UP * GESER), FadeIn(q), FadeIn(lt), run_time=CEPAT)
+        g = chip("GPU", TOSKA, 1.6).move_to(pos(2.0, 2.6))
         lg = teks("GPU · chip tukang hitung", color=TOSKA, size="caption", weight=MEDIUM)
-        lg.next_to(g, DOWN, buff=0.35 * S)
+        lg.next_to(g, DOWN, buff=0.3 * S)
+        if lg.get_right()[0] > AMAN["kanan"]:
+            lg.align_to([AMAN["kanan"], 0, 0], RIGHT)
         self.play(FadeIn(g, scale=0.9), FadeIn(lg), run_time=CEPAT)
-        angka = kolom_angka(8).move_to(pos(2.75, 0.9))
+        angka = kolom_angka(6).scale(0.9).move_to(pos(2.3, -0.6))
         semua = VGroup(*tower, q)
         terbang = [b.copy() for b in semua]
-        self.play(LaggedStart(*[t.animate.move_to(g.get_center()).scale(0.3).set_opacity(0) for t in terbang],
+        self.play(LaggedStart(*[t.animate.move_to(g.get_center()).scale(0.2).set_opacity(0) for t in terbang],
                               lag_ratio=0.1), run_time=1.6)
-        self.play(LaggedStart(*[FadeIn(r, shift=RIGHT * 0.3 * S) for r in angka], lag_ratio=0.1), run_time=1.2)
+        self.play(LaggedStart(*[FadeIn(r, shift=DOWN * 0.2 * S) for r in angka], lag_ratio=0.1), run_time=1.2)
         rumus = VGroup(teks("token", color=TINTA, size="body"), teks("→", color=ABU, size="body"),
                        teks("angka", color=JINGGA, size="body", weight=MEDIUM)).arrange(RIGHT, buff=0.25 * S)
-        rumus.move_to(pos(0, -2.6))
+        rumus.move_to(pos(0, -3.0))
         self.play(FadeIn(rumus, shift=UP * GESER), run_time=CEPAT)
         self.mark("A_02_kalau")
         self.wait(JEDA)
@@ -145,8 +191,9 @@ class S02Kalau(KapurScene):
 class S03Tapi(KapurScene):
     def construct(self):
         self.header("Tapi… aturannya sama terus", chapter=BAB)
-        tower = menara2d(7, ABU, s=0.5).move_to(pos(-1.6, 0.4))
-        g = chip("GPU", TOSKA, 1.3).move_to(pos(1.8, 0.4))
+        tower = tumpuk_aturan(ATURAN + ["…"])
+        tower.move_to(pos(0, 0.3)).align_to([AMAN["kiri"], 0, 0], LEFT)
+        g = chip("GPU", TOSKA, 1.3).move_to(pos(2.4, 0.3))
         self.play(FadeIn(tower), FadeIn(g), run_time=CEPAT)
         hit = VGroup(teks("pembeli ke-", color=LANGIT, size="body"),
                      mono("1", color=JINGGA, size="h2", weight=BOLD)).arrange(RIGHT, buff=0.1 * S)
@@ -157,24 +204,25 @@ class S03Tapi(KapurScene):
             self.remove(hit[1])
             hit[1] = angka
             self.add(angka)
-            self.play(LaggedStart(*[Indicate(b, color=SAGA, scale_factor=1.08) for b in tower], lag_ratio=0.05),
+            self.play(LaggedStart(*[Indicate(b, color=SAGA, scale_factor=1.05) for b in tower], lag_ratio=0.05),
                       Indicate(g[1], color=SAGA, scale_factor=1.04), run_time=rt)
-        boros = teks("100 pembeli = 100× hitung ulang", color=SAGA, size="body", weight=MEDIUM).move_to(pos(0, -2.2))
+        boros = teks("100 pembeli = 100× hitung ulang", color=SAGA, size="body", weight=MEDIUM).move_to(pos(0, -2.6))
         cth = caption("angka contoh").next_to(boros, DOWN, buff=0.15 * S)
         self.play(FadeIn(boros, shift=UP * GESER), FadeIn(cth), run_time=CEPAT)
         self.mark("A_03_tapi")
         self.wait(1.2)
         self.header("Jadi, simpan hasil hitungannya", chapter=BAB)
-        mem = RoundedRectangle(width=3.2 * S, height=2.2 * S, corner_radius=0.15 * S, stroke_color=TOSKA,
-                               stroke_width=2.5 * S, fill_color=redup(TOSKA, 0.12), fill_opacity=1)
-        mem.move_to(pos(0, 0.4))
+        simpan = VGroup(*[chip_angka(t, seed=i) for i, t in enumerate(TAG)]).arrange(DOWN, buff=0.12 * S)
+        mem = RoundedRectangle(width=simpan.width + 0.7 * S, height=simpan.height + 0.7 * S, corner_radius=0.15 * S,
+                               stroke_color=TOSKA, stroke_width=2.5 * S, fill_color=redup(TOSKA, 0.08), fill_opacity=1)
+        mem.move_to(pos(0, 0.5))
+        simpan.move_to(mem)
         lm = teks("memori GPU", color=TOSKA, size="caption", weight=MEDIUM).next_to(mem, DOWN, buff=0.2 * S)
-        simpan = menara2d(5, TOSKA, s=0.46).arrange(RIGHT, buff=0.08 * S).move_to(mem)
-        self.play(FadeOut(hit), FadeOut(boros), FadeOut(cth), FadeOut(g), run_time=CEPAT)
-        self.play(ReplacementTransform(tower[:5], simpan), FadeOut(tower[5:]), FadeIn(mem), FadeIn(lm),
+        self.play(FadeOut(hit), FadeOut(boros), FadeOut(cth), FadeOut(g), FadeIn(mem), FadeIn(lm), run_time=CEPAT)
+        self.play(*[ReplacementTransform(tower[i], simpan[i]) for i in range(5)], FadeOut(tower[5:]),
                   run_time=LAMBAT)
-        self.bring_to_front(simpan)
-        bukan = caption("yang disimpan: angka hasil hitungan, bukan teks").move_to(pos(0, -2.2))
+        self.bring_to_front(*simpan)
+        bukan = caption("yang disimpan: angka hasil hitungan, bukan teks").move_to(pos(0, -2.6))
         self.play(FadeIn(bukan), run_time=CEPAT)
         self.mark("A_04_simpan")
         self.wait(1.2)
@@ -372,15 +420,17 @@ class S04Zoom(Zoom3Dv2):
         mem, slots = dunia_memori(tampil_prefix=False)
         mem.scale(MEM_S, about_point=ORIGIN)
         terang_memori(mem)
+        for q_ in LAIN:
+            mem.add(label3d("user lain", slots[q_], color=ABU, ukuran=16))
         self.masuk(gp, fh, mem, keluar=[c, d])
         isi = VGroup()
         for p in PREFIX:
             k = kubus(TOSKA, sisi=0.9 * 0.86 * MEM_S, isi=0.5)
             k.move_to(slots_center(p) * MEM_S + OUT * 0.39 * MEM_S)
-            isi.add(k)
+            isi.add(VGroup(k, label3d(TAG[PREFIX.index(p)], k, color=TOSKA)))
         e = self.lab("hasil hitungan aturan toko", (0, 4.45), color=TOSKA)
         self.play(FadeIn(e), LaggedStart(*[FadeIn(k, shift=IN * 0.6) for k in isi], lag_ratio=0.2), run_time=1.0)
-        kartu_ = kartu(VGroup(mono("isi 1 blok (ilustrasi)", color=ABU, size="caption"),
+        kartu_ = kartu(VGroup(mono("isi blok \u201cgaransi\u201d (ilustrasi)", color=ABU, size="caption"),
                               mono("0.12  -0.87  0.45  1.03  …", color=JINGGA, size="body"))
                        .arrange(DOWN, buff=0.15, aligned_edge=LEFT), aksen=JINGGA).move_to([0, -3.1, 0])
         self.add_fixed_in_frame_mobjects(kartu_)
@@ -391,60 +441,65 @@ class S04Zoom(Zoom3Dv2):
         self.wait(1.2)
 
 
-class S05Cocok(Zoom3Dv2):
+class S05Cocok(KapurScene):
+    """2D: blok tersimpan (chip angka berlabel) vs pesan baru (bubble), dicocokin dari atas (= dari awal)."""
+
     def construct(self):
-        self.kamera()
-        mem, slots = dunia_memori()
-        mem.scale(MEM_S, about_point=ORIGIN)
-        terang_memori(mem)
-        self.add(mem)
-        self.judul3d("Pertanyaan berikutnya")
-        # dunia memori geser ke atas pelan, pesan baru masuk dari bawah
-        s = 0.9
-        req = VGroup()
-        for n in range(7):
-            k = kubus(LANGIT if n < 5 else KUNYIT, sisi=s * 0.86, isi=0.3 if n < 5 else 0.55)
-            k.move_to([(n - 3) * (s + 0.1) + 0.5, -2.9, s * 0.43])
-            req.add(k)
-        l0 = self.lab("pesan baru masuk", (-1.9, -3.95), color=LANGIT)
-        self.play(mem.animate.scale(1.05 / MEM_S, about_point=ORIGIN).shift(UP * 1.5), run_time=1.2, rate_func=smooth)
-        self.play(LaggedStart(*[FadeIn(k, shift=UP * 0.5) for k in req], lag_ratio=0.1), FadeIn(l0), run_time=1.2)
-        l1 = self.lab("CPU cocokin sidik tiap blok, dari awal", (0, 4.5), color=TINTA, size="caption")
-        self.play(FadeIn(l1), run_time=0.6)
+        self.header("Pertanyaan berikutnya", chapter=BAB)
+        kiri_ = VGroup(*[chip_angka(t, seed=i, n=1) for i, t in enumerate(TAG)]).arrange(DOWN, buff=0.22 * S,
+                                                                                    aligned_edge=LEFT)
+        kanan_ = VGroup(*[balon(x, ABU) for x in ATURAN]).arrange(DOWN, buff=0.18 * S, aligned_edge=LEFT)
+        for kb, kc in zip(kiri_, kanan_):
+            kb.set_y(kc.get_y())
+        top = pos(0, 3.0)[1]
+        for g_ in (kiri_, kanan_):
+            g_.shift(UP * (top - g_.get_top()[1]))
+        kiri_.align_to([AMAN["kiri"], 0, 0], LEFT)
+        kanan_.align_to([AMAN["kanan"], 0, 0], RIGHT)
+        for i in range(5):
+            kiri_[i].set_y(kanan_[i].get_y())
+        hk = mono("TERSIMPAN · memori GPU", color=TOSKA, size="mikro", weight=BOLD).next_to(kiri_, UP, buff=0.25 * S)
+        hk.align_to(kiri_, LEFT)
+        hn = mono("PESAN BARU", color=LANGIT, size="mikro", weight=BOLD).next_to(kanan_, UP, buff=0.25 * S)
+        hn.align_to(kanan_, LEFT)
+        q = balon("garansinya berapa lama?", LANGIT).next_to(kanan_, DOWN, buff=0.18 * S).align_to(kanan_, LEFT)
+        self.play(FadeIn(kiri_), FadeIn(hk), run_time=CEPAT)
+        self.play(FadeIn(kanan_, shift=LEFT * GESER), FadeIn(q, shift=LEFT * GESER), FadeIn(hn), run_time=CEPAT)
+        l1 = caption("CPU cocokin dari awal, satu per satu", color=TINTA).move_to(pos(0, -2.1))
+        self.play(FadeIn(l1), run_time=CEPAT)
         tali = VGroup()
-        for n, p in enumerate(PREFIX):
-            t = garis_putus(req[n].get_center() + UP * 0.4, slots[p].get_center() + DOWN * 0.4, color=DAUN, w=2.5)
+        for i in range(5):
+            t = DashedLine(kiri_[i].get_right(), kanan_[i].get_left(), color=DAUN, stroke_width=2.5 * S,
+                           dash_length=0.1 * S, buff=0.08 * S)
             tali.add(t)
-            self.play(Create(t), req[n].animate.set_stroke(DAUN).set_fill(redup(DAUN, 0.35), 0.35), run_time=0.4)
-        l2 = self.lab("sama → GPU loncatin hitungannya", (0, -2.0), color=DAUN, size="caption")
-        l3 = self.lab("baru → dihitung", (2.2, -3.95), color=KUNYIT)
-        self.play(FadeIn(l2), FadeIn(l3), run_time=0.6)
+            self.play(Create(t), kanan_[i][0].animate.set_stroke(DAUN), run_time=0.35)
+        l2 = teks("sama → GPU loncatin hitungannya", color=DAUN, size="caption", weight=MEDIUM).move_to(pos(0, -2.75))
+        l3 = teks("baru → dihitung", color=KUNYIT, size="caption", weight=MEDIUM).next_to(q, DOWN, buff=0.15 * S)
+        l3.align_to(q, LEFT)
+        self.play(FadeIn(l2), q[0].animate.set_stroke(KUNYIT, width=3 * S), FadeIn(l3), run_time=0.7)
+        self.add(*[b[1] for b in kanan_], q[1])
         self.mark("A_09_cocok")
         self.wait(1.4)
-        # crossfade ke aturan "dari awal": kamera tetap
-        sisi, gap = 0.72, 0.07
-        simpan = menara([TOSKA] * 5, x=-2.6, sisi=sisi, gap=gap)
-        cocok = menara([DAUN] * 5 + [LANGIT, LANGIT], x=0.0, sisi=sisi, gap=gap)
-        beda = menara([DAUN] * 7, x=2.6, sisi=sisi, gap=gap)
-        towers = VGroup(simpan, cocok, beda).shift(IN * 2.3)
-        lama = VGroup(mem, req, tali)
-        self.judul3d("Dicocokin dari awal")
-        m1 = self.lab("tersimpan", (-2.75, -3.2), color=TOSKA, size="caption")
-        m2 = self.lab("sama persis", (0.0, -3.2), color=DAUN, size="caption")
-        self.play(FadeOut(lama), FadeOut(VGroup(l0, l1, l2, l3)), FadeIn(towers), FadeIn(m1), FadeIn(m2),
-                  run_time=1.4, rate_func=smooth)
-        m3 = VGroup(self.lab("beda 1 kata", (2.65, -3.2), color=SAGA, size="caption"),
-                    self.lab("di depan", (2.65, -3.7), color=SAGA, size="caption"))
-        self.play(beda[1].animate.set_stroke(KUNYIT, width=4).set_fill(redup(KUNYIT, 0.4), 0.6), FadeIn(m3),
-                  run_time=0.8)
-        self.play(LaggedStart(*[k.animate.set_stroke(SAGA).set_fill(redup(SAGA, 0.4), 0.55) for k in beda[2:]],
-                              lag_ratio=0.2), run_time=1.4)
-        m4 = self.lab("semua setelahnya dihitung ulang", (1.4, 3.3), color=SAGA, size="caption")
-        m5 = self.lab("yang tetap → depan · berubah → belakang", (0, -4.5), color=TINTA, size="caption")
-        self.play(FadeIn(m4), FadeIn(m5), run_time=0.7)
+        # aturan: harus sama dari awal
+        self.header("Dicocokin dari awal", chapter=BAB)
+        beda = balon("Kamu CS Toko Gadget Maju.", ABU).move_to(kanan_[0], aligned_edge=LEFT)
+        self.play(FadeOut(tali), FadeOut(l1), FadeOut(l2), FadeOut(l3), q[0].animate.set_stroke(LANGIT, width=1.8 * S),
+                  *[kanan_[i][0].animate.set_stroke(ABU) for i in range(5)], run_time=CEPAT)
+        self.play(Transform(kanan_[0], beda), run_time=0.6)
+        self.play(kanan_[0][0].animate.set_stroke(KUNYIT, width=3 * S), run_time=0.4)
+        m1 = teks("beda 1 kata di depan", color=SAGA, size="caption", weight=MEDIUM).move_to(pos(0, -2.1))
+        self.play(FadeIn(m1), run_time=CEPAT)
+        silang = VGroup()
+        for i in range(1, 5):
+            self.play(kanan_[i][0].animate.set_stroke(SAGA), run_time=0.25)
+        self.play(q[0].animate.set_stroke(SAGA), run_time=0.25)
+        m2 = teks("teksnya sama, tapi setelah yang beda → hitung ulang semua", color=SAGA, size="caption").move_to(pos(0, -2.7))
+        m3 = teks("yang tetap → depan · yang berubah → belakang", color=TINTA, size="caption", weight=MEDIUM).move_to(pos(0, -3.6))
+        self.add(*[b[1] for b in kanan_], q[1])
+        self.play(FadeIn(m2), run_time=CEPAT)
+        self.play(FadeIn(m3, shift=UP * GESER), run_time=CEPAT)
         self.mark("A_10_dari_awal")
         self.wait(JEDA)
-
 
 
 # --------------------------------------------------------------------------
@@ -460,8 +515,16 @@ class S06Terbatas(KapurScene):
         mine = [0, 1, 2, 3, 4]
         blok = VGroup()
         for i, sq in enumerate(slot):
-            col = TOSKA if i in mine else ABU_GELAP
-            b = blok2d(col, s * 0.82, 0.5 if i in mine else 0.2).move_to(sq)
+            if i in mine:
+                b = VGroup(blok2d(TOSKA, s * 0.86, 0.35),
+                           Text(TAG[i], font=FONT_MONO, weight=BOLD, color=TOSKA, font_size=13 * S))
+            else:
+                b = VGroup(blok2d(ABU_GELAP, s * 0.86, 0.2),
+                           Text("lain", font=FONT_MONO, color=ABU, font_size=12 * S))
+            b[1].move_to(b[0])
+            if b[1].width > 0.9 * b[0].width:
+                b[1].scale_to_fit_width(0.9 * b[0].width)
+            b.move_to(sq)
             blok.add(b)
         self.play(FadeIn(slot), run_time=CEPAT)
         order = list(range(nx * ny))
